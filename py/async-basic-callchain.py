@@ -14,6 +14,7 @@ async def run_all_exchanges(exchange_ids):
     results = {}
 
     for exchange_id in exchange_ids:
+        print('Exchange:', exchange_id)
 
         exchange = getattr(ccxt, exchange_id)({
             'options': {
@@ -22,7 +23,6 @@ async def run_all_exchanges(exchange_ids):
         })
 
         symbol = 'ETH/BTC'
-        print('Exchange:', exchange_id)
 
         print(exchange_id, 'symbols:')
         markets = await load_markets(exchange, symbol)  # ←----------- STEP 1
