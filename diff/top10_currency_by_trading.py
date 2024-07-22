@@ -80,14 +80,23 @@ elapsed_time = end_time - start_time
 
 # 过滤出有效的ticker数据，按交易量排序并获取前10名
 valid_tickers = [ticker for ticker in tickers if ticker]
-top_10_tickers = sorted(valid_tickers, key=lambda x: x['quoteVolume'], reverse=True)[:10]
+# top_10_tickers = sorted(valid_tickers, key=lambda x: x['quoteVolume'], reverse=True)[:10]
+
+# 使用 baseVolume 排序，如果 baseVolume 不存在，则使用 last 价
+sorted_tickers = sorted(
+    valid_tickers,
+    key=lambda x: (x['baseVolume'] if x['baseVolume'] is not None else 0, x['last']),
+    reverse=True
+)
+top_10_tickers = sorted_tickers[:10]
 
 # 打印结果
-print("\nTop 10 most active trading pairs by volume:")
+print("\nTop 10 most active trading pairs:")
 for ticker in top_10_tickers:
     symbol = ticker['symbol']
-    volume = ticker['quoteVolume']
-    print(f"Trading Pair: {symbol}, Volume: {volume}")
+    base_volume = ticker['baseVolume']
+    last_price = ticker['last']
+    print(f"Trading Pair: {symbol}, Base Volume: {base_volume}, Last Price: {last_price}")
 
 # 打印耗时
 print(f"\nTime taken to fetch data: {elapsed_time:.2f} seconds")
