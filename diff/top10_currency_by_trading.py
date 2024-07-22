@@ -112,6 +112,27 @@ def main():
     # 打印耗时
     print(f"\nTime taken to fetch data: {elapsed_time:.2f} seconds")
 
+    # 获取 CoinBase 上的实时价格
+    coinbasepro = exchanges['coinbasepro']
+    coinbasepro.load_markets()
+    print("\nReal-time prices on Coinbase for the top 10 USDT trading pairs:")
+    for ticker in top_10_tickers:
+        symbol = ticker['symbol']
+        base_currency = symbol.split('/')[0]  # 获取基础货币
+        coinbase_symbol = f"{base_currency}/USD"  # Coinbase 上的交易对
+
+        if coinbase_symbol in coinbasepro.markets:
+            try:
+                coinbase_ticker = coinbasepro.fetch_ticker(coinbase_symbol)
+                coinbase_price = coinbase_ticker['last']
+                # 将科学计数法转换为标准格式
+                formatted_price = f"{coinbase_price:.8f}"
+                print(f"Coinbase {coinbase_symbol} price: {formatted_price}")
+            except Exception as e:
+                print(f"Error fetching price for {coinbase_symbol} on Coinbase: {e}")
+        else:
+            print(f"{coinbase_symbol} is not available on Coinbase.")
+
 
 # 运行主函数
 if __name__ == "__main__":
