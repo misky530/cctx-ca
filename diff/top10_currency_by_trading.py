@@ -13,20 +13,12 @@ import redis
 #     },
 # })
 
-exchanges = {
-    'coinbasepro': ccxt.coinbase({
-        'proxies': {
-            'http': 'http://127.0.0.1:7890',
-            'https': 'http://127.0.0.1:7890',
-        },
-    }),
-    # 'binance': ccxt.binance({
-    #     'proxies': {
-    #         'http': 'http://127.0.0.1:7890',
-    #         'https': 'http://127.0.0.1:7890',
-    #     },
-    # }),
-}
+exchange = ccxt.coinbase({
+    'proxies': {
+        'http': 'http://127.0.0.1:7890',
+        'https': 'http://127.0.0.1:7890',
+    },
+})
 
 # 定义获取 ticker 数据的函数
 completed = 0  # 已完成的请求数
@@ -35,11 +27,13 @@ lock = asyncio.Lock()  # 用于线程安全的输出
 # 连接到 Redis
 redis_client = redis.StrictRedis(host='36.137.225.245', port=6376, db=1, password='mtic0756-dev')
 
+redis_key_prefix = 'tt'
 
-def fetch_ticker(exchange_id, exchange, symbol):
+
+def fetch_ticker(symbol):
     global completed
     try:
-        key = f"{exchange_id}:{symbol}"
+        key = f"{redis_key_prefix}:{symbol}"
         # 尝试从 Redis 获取缓存数据
         cached_ticker = redis_client.get(key)
         if cached_ticker:
@@ -63,23 +57,23 @@ def fetch_ticker(exchange_id, exchange, symbol):
 
 def main():
     global completed
-    usdt_symbols = {}
 
     # 加载所有交易所的市场信息，并筛选出以 USDT 为计价单位的交易对
-    for exchange_id, exchange in exchanges.items():
-        markets = exchange.load_markets()
-        usdt_symbols[exchange_id] = [symbol for symbol in markets if symbol.endswith('/USDT')]
+    markets = exchange.load_markets()
+    usdt_symbols = [symbol for symbol in markets if symbol.endswith('/USDT')]
+
+    print(usdt_symbols)
 
     # 开始时间
     start_time = time.time()
 
     # 获取所有交易所的 ticker 数据
     tickers = []
-    for exchange_id, symbols in usdt_symbols.items():
-        for symbol in symbols:
-            ticker = fetch_ticker(exchange_id, exchange, symbol)
-            if ticker:
-                tickers.append(ticker)
+
+    for symbol in usdt_symbols:
+        ticker = fetch_ticker(symbol)
+        if ticker:
+            tickers.append(ticker)
 
     # 结束时间
     end_time = time.time()
@@ -113,17 +107,15 @@ def main():
     print(f"\nTime taken to fetch data: {elapsed_time:.2f} seconds")
 
     # 获取 CoinBase 上的实时价格
-    coinbasepro = exchanges['coinbasepro']
-    coinbasepro.load_markets()
     print("\nReal-time prices on Coinbase for the top 10 USDT trading pairs:")
     for ticker in top_10_tickers:
         symbol = ticker['symbol']
         base_currency = symbol.split('/')[0]  # 获取基础货币
         coinbase_symbol = f"{base_currency}/USD"  # Coinbase 上的交易对
 
-        if coinbase_symbol in coinbasepro.markets:
+        if coinbase_symbol in exchange.markets:
             try:
-                coinbase_ticker = coinbasepro.fetch_ticker(coinbase_symbol)
+                coinbase_ticker = exchange.fetch_ticker(coinbase_symbol)
                 coinbase_price = coinbase_ticker['last']
                 # 将科学计数法转换为标准格式
                 formatted_price = f"{coinbase_price:.8f}"
