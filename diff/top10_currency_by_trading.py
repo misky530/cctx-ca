@@ -125,6 +125,29 @@ def main():
         else:
             print(f"{coinbase_symbol} is not available on Coinbase.")
 
+    # 获取 Binance 上的实时价格
+    binance = ccxt.binance({
+        'proxies': {
+            'http': 'http://127.0.0.1:7890',
+            'https': 'http://127.0.0.1:7890',
+        },
+    })
+    binance.load_markets()
+    print("\nReal-time prices on Binance for the top 10 USDT trading pairs:")
+    for ticker in top_10_tickers:
+        symbol = ticker['symbol']
+        if symbol in binance.markets:
+            try:
+                binance_ticker = binance.fetch_ticker(symbol)
+                binance_price = binance_ticker['last']
+                # 将科学计数法转换为标准格式
+                formatted_price = f"{binance_price:.8f}"
+                print(f"Binance {symbol} price: {formatted_price}")
+            except Exception as e:
+                print(f"Error fetching price for {symbol} on Binance: {e}")
+        else:
+            print(f"{symbol} is not available on Binance.")
+
 
 # 运行主函数
 if __name__ == "__main__":
