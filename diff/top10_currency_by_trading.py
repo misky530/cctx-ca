@@ -62,6 +62,15 @@ def fetch_ticker(symbol):
         return None
 
 
+def calculate_gas_cost(transaction_type):
+    # 这里假设每次交易的gas费用是固定的，你可以根据实际情况调整
+    gas_costs = {
+        'buy': 0.1,  # 假设买入的gas费用是10美元
+        'sell': 0.1  # 假设卖出的gas费用是10美元
+    }
+    return gas_costs.get(transaction_type, 0)
+
+
 def main():
     global completed
 
@@ -158,15 +167,24 @@ def main():
         else:
             print(f"{symbol} is not available on Binance.")
 
-    # 按差价从大到小排序
-    sorted_price_differences = sorted(price_differences, key=lambda x: x[1], reverse=True)
+        # 按差价从大到小排序
+        sorted_price_differences = sorted(price_differences, key=lambda x: x[1], reverse=True)
 
-    # 打印差价排序结果
-    print("\nPrice differences between Binance and Coinbase (sorted from largest to smallest):")
-    for symbol, price_difference, binance_price, coinbase_price in sorted_price_differences:
-        print(
-            f"Trading Pair: {symbol}, Price Difference: {price_difference:.8f}, Binance Price: {binance_price:.8f}, "
-            f"Coinbase Price: {coinbase_price:.8f}")
+        # 打印差价排序结果
+        print("\nPrice differences between Binance and Coinbase (sorted from largest to smallest):")
+        for symbol, price_difference, binance_price, coinbase_price in sorted_price_differences:
+            # 计算买入和卖出的gas费用
+            buy_gas_cost = calculate_gas_cost('buy')
+            sell_gas_cost = calculate_gas_cost('sell')
+
+            # 假设买入数量为 1 个单位的基础货币
+            buy_amount = 1.0
+            total_cost = buy_amount * binance_price + buy_gas_cost
+            total_revenue = buy_amount * coinbase_price - sell_gas_cost
+            profit = total_revenue - total_cost
+
+            print(
+                f"Trading Pair: {symbol}, Price Difference: {price_difference:.8f}, Binance Price: {binance_price:.8f}, Coinbase Price: {coinbase_price:.8f}, Profit: {profit:.8f}")
 
 
 # 运行主函数
