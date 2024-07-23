@@ -13,7 +13,14 @@ import redis
 #     },
 # })
 
-exchange = ccxt.coinbase({
+coinbase_exchange = ccxt.coinbase({
+    'proxies': {
+        'http': 'http://127.0.0.1:7890',
+        'https': 'http://127.0.0.1:7890',
+    },
+})
+
+binance_exchange = ccxt.coinbase({
     'proxies': {
         'http': 'http://127.0.0.1:7890',
         'https': 'http://127.0.0.1:7890',
@@ -43,7 +50,7 @@ def fetch_ticker(symbol):
             return ticker
 
         # 如果缓存不存在或已过期，调用 API 获取数据
-        ticker = exchange.fetch_ticker(symbol)
+        ticker = coinbase_exchange.fetch_ticker(symbol)
         # 将 ticker 数据存储到 Redis 中，使用 key 作为键，设置 TTL 为 1 小时
         redis_client.setex(key, 3600, json.dumps(ticker))
         completed += 1
@@ -59,7 +66,7 @@ def main():
     global completed
 
     # 加载所有交易所的市场信息，并筛选出以 USDT 为计价单位的交易对
-    markets = exchange.load_markets()
+    markets = coinbase_exchange.load_markets()
     usdt_symbols = [symbol for symbol in markets if symbol.endswith('/USDT')]
 
     print(usdt_symbols)
@@ -108,15 +115,17 @@ def main():
 
     # 获取 CoinBase 上的实时价格
     print("\nReal-time prices on Coinbase for the top 10 USDT trading pairs:")
+    coinbase_prices = {}
     for ticker in top_10_tickers:
         symbol = ticker['symbol']
         base_currency = symbol.split('/')[0]  # 获取基础货币
         coinbase_symbol = f"{base_currency}/USD"  # Coinbase 上的交易对
 
-        if coinbase_symbol in exchange.markets:
+        if coinbase_symbol in coinbase_exchange.markets:
             try:
-                coinbase_ticker = exchange.fetch_ticker(coinbase_symbol)
+                coinbase_ticker = coinbase_exchange.fetch_ticker(coinbase_symbol)
                 coinbase_price = coinbase_ticker['last']
+                coinbase_prices[symbol] = coinbase_price
                 # 将科学计数法转换为标准格式
                 formatted_price = f"{coinbase_price:.8f}"
                 print(f"Coinbase {coinbase_symbol} price: {formatted_price}")
@@ -125,28 +134,39 @@ def main():
         else:
             print(f"{coinbase_symbol} is not available on Coinbase.")
 
-    # 获取 Binance 上的实时价格
-    binance = ccxt.binance({
-        'proxies': {
-            'http': 'http://127.0.0.1:7890',
-            'https': 'http://127.0.0.1:7890',
-        },
-    })
-    binance.load_markets()
-    print("\nReal-time prices on Binance for the top 10 USDT trading pairs:")
+    # 获取 Binance 上的实时价格并对比差价
+    binance_exchange.load_markets()
+    price_differences = []
+    print("\nReal-time prices on Binance and price differences for the top 10 USDT trading pairs:")
     for ticker in top_10_tickers:
         symbol = ticker['symbol']
-        if symbol in binance.markets:
+        if symbol in binance_exchange.markets:
             try:
-                binance_ticker = binance.fetch_ticker(symbol)
+                binance_ticker = binance_exchange.fetch_ticker(symbol)
                 binance_price = binance_ticker['last']
                 # 将科学计数法转换为标准格式
                 formatted_price = f"{binance_price:.8f}"
                 print(f"Binance {symbol} price: {formatted_price}")
+
+                # 对比差价
+                if symbol in coinbase_prices:
+                    coinbase_price = coinbase_prices[symbol]
+                    price_difference = abs(binance_price - coinbase_price)
+                    price_differences.append((symbol, price_difference, binance_price, coinbase_price))
             except Exception as e:
                 print(f"Error fetching price for {symbol} on Binance: {e}")
         else:
             print(f"{symbol} is not available on Binance.")
+
+    # 按差价从大到小排序
+    sorted_price_differences = sorted(price_differences, key=lambda x: x[1], reverse=True)
+
+    # 打印差价排序结果
+    print("\nPrice differences between Binance and Coinbase (sorted from largest to smallest):")
+    for symbol, price_difference, binance_price, coinbase_price in sorted_price_differences:
+        print(
+            f"Trading Pair: {symbol}, Price Difference: {price_difference:.8f}, Binance Price: {binance_price:.8f}, "
+            f"Coinbase Price: {coinbase_price:.8f}")
 
 
 # 运行主函数
